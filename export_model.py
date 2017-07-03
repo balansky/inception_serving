@@ -5,9 +5,9 @@ from inception import inception_model
 from tensorflow.python.ops import control_flow_ops
 
 
-tf.app.flags.DEFINE_string('checkpoint_dir', '/home/andy/Data/models/inception/v3',
+tf.app.flags.DEFINE_string('checkpoint_dir', 'models/v3',
                            """Directory where to read training checkpoints.""")
-tf.app.flags.DEFINE_string('output_dir', '/home/andy/Data/models/inception/servable_v3',
+tf.app.flags.DEFINE_string('output_dir', 'models/servable_v3',
                            """Directory where to export inference model.""")
 tf.app.flags.DEFINE_integer('model_version', 1,
                             """Version number of the model.""")
