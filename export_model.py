@@ -33,29 +33,31 @@ def load_model_classes(synset_file, metadata_file):
 
 
 def preprocess_image(jpeg):
-    image = tf.image.decode_jpeg(jpeg, channels=3)
-    image = tf.image.convert_image_dtype(image, dtype=tf.float32)
-    max_side = tf.reduce_max(tf.shape(image))
-    target_size = tf.constant(299)
-    target_smaller_than_max = tf.less_equal(target_size, max_side)
-    resize_size = control_flow_ops.cond(target_smaller_than_max, lambda :max_side, lambda :target_size)
-    image = tf.image.resize_image_with_crop_or_pad(image, resize_size, resize_size)
-    image = tf.image.per_image_standardization(image)
-    image = tf.expand_dims(image, 0)
-    image = tf.image.resize_bicubic(
-        image, [target_size, target_size], align_corners=False)
+    # image = tf.image.decode_jpeg(jpeg, channels=3)
+    # # image = tf.image.convert_image_dtype(image, dtype=tf.float32)
+    # image.set_shape([299, 299, 3])
+    # image = tf.to_float(image)
+    # image = (image - 128.)/128.
 
-    image = tf.squeeze(image, squeeze_dims=[0])
+    image = tf.decode_raw(jpeg, out_type=tf.float64)
+    image = tf.reshape(image, [299, 299, 3])
+    image = tf.to_float(image)
+    #
+    # image = tf.image.decode_jpeg(jpeg, channels=3)
+    # image = tf.image.convert_image_dtype(image, dtype=tf.float32)
+    # image.set_shape([299, 299, 3])
+    # image = tf.to_float(image)
+    # image = (image - 128.)/128.
     return image
 
 
 def parse_incoming_data(incoming_data):
     with tf.device('/cpu:0'):
         feature_configs = {
-            'image': tf.FixedLenFeature(shape=[], dtype=tf.string)
+            'image/encoded': tf.FixedLenFeature(shape=[], dtype=tf.string)
         }
         tf_examples = tf.parse_example(incoming_data, feature_configs)
-        jpegs = tf_examples['image']
+        jpegs = tf_examples['image/encoded']
         images = tf.map_fn(preprocess_image, jpegs, dtype=tf.float32)
     return jpegs, images
 
@@ -113,10 +115,10 @@ def build_prediction_signature(jpegs, embeddings, classes):
     embedding_tensor_info = tf.saved_model.utils.build_tensor_info(embeddings)
     prediction_signature = (
         tf.saved_model.signature_def_utils.build_signature_def(
-            inputs={'images': predict_inputs_tensor_info},
+            inputs={"images": predict_inputs_tensor_info},
             outputs={
                 'classes': classes_output_tensor_info,
-                'embedding': embedding_tensor_info
+                'features': embedding_tensor_info
             },
             method_name=tf.saved_model.signature_constants.PREDICT_METHOD_NAME
         ))
