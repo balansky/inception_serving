@@ -1,5 +1,6 @@
 from flask import Flask, abort, request, jsonify
 import requests
+from requests.exceptions import HTTPError, Timeout
 import json
 import os
 from io import BytesIO
@@ -14,14 +15,18 @@ app = Flask(__name__)
 
 @app.route("/features", methods=["POST"])
 def extract_features():
+    info = ""
     try:
         if "url" in request.json and request.json["url"]:
+            info = request.json['url']
             res = requests.get(request.json['url'], timeout=10)
             res.raise_for_status()
             img = Image.open(BytesIO(res.content))
         elif "base64" in request.json:
+            info = "base64"
             img = Image.open(BytesIO(base64.b64decode(request.json['base64'].split(',')[-1])))
         else:
+            info = str(request.json)
             raise Exception("Not Support Inputs")
         longersize = max(img.size)
         background = Image.new('RGB', (longersize, longersize), (255, 255, 255))
@@ -56,9 +61,14 @@ def extract_features():
             return jsonify({"features": features})
         else:
             raise Exception(resp.text)
-
+    except Timeout as terr:
+        app.logger.error("%s: %s" % (info, str(terr)))
+        abort(408)
+    except HTTPError as herr:
+        app.logger.error("%s: %s" % (info, str(herr)))
+        abort(404)
     except Exception as err:
-        app.logger.error(str(err))
+        app.logger.error("%s: %s" % (info, str(err)))
         abort(400)
 
 
